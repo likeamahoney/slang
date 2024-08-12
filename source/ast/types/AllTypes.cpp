@@ -35,7 +35,7 @@ using namespace slang::ast;
 class InterfaceDefVisitor : public ASTVisitor<InterfaceDefVisitor, true, true> {
 public:
     InterfaceDefVisitor(const InstanceSymbol& iface, const ASTContext& context) :
-        iface(iface), context(context){};
+        iface(iface), context(context) {};
     template<typename T>
     void handle(const T& symbol) {
         if constexpr (std::is_base_of_v<Symbol, T>) {
