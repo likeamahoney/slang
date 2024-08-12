@@ -6,9 +6,11 @@
 // SPDX-License-Identifier: MIT
 //------------------------------------------------------------------------------
 #include "slang/ast/types/AllTypes.h"
+#include <iostream>
 
 #include "slang/ast/ASTContext.h"
 #include "slang/ast/ASTSerializer.h"
+#include "slang/ast/ASTVisitor.h"
 #include "slang/ast/Compilation.h"
 #include "slang/ast/Expression.h"
 #include "slang/ast/expressions/LiteralExpressions.h"
@@ -30,6 +32,55 @@ namespace {
 using namespace slang;
 using namespace slang::syntax;
 using namespace slang::ast;
+
+class InterfaceDefVisitor : public ASTVisitor<InterfaceDefVisitor, true, true> {
+public:
+    InterfaceDefVisitor(const InstanceSymbo& iface) : iface(iface){};
+    template<typename T>
+    void handle(const T& symbol) {
+        if constexpr (std::is_base_of_v<Symbol, T>) {
+            if (symbol.kind == SymbolKind::Instance) {
+                const auto* inst = symbol.template as_if<InstanceSymbol>();
+                if (inst->isInterface())
+                    std::cout << symbol.name << " ";
+            }
+            // std::cout << symbol.name << " " << symbol.kind << "\n";
+        }
+
+        if constexpr (requires { symbol.getBody().bad(); }) {
+            auto& body = symbol.getBody();
+            if (body.bad())
+                return;
+
+            body.visit(*this);
+        }
+
+        visitDefault(symbol);
+    }
+
+    void handle(const HierarchicalValueExpression& hVE) {
+        const auto& sym = hVE.symbol;
+        const auto* parentScope = sym.getParentScope();
+        while (
+            /*parentScope->asSymbol().kind != SymbolKind::InstanceBody &&*/ parentScope->asSymbol()
+                .kind != SymbolKind::CompilationUnit) {
+            if (const auto symScope = parentScope->asSymbol().as_if<InstanceBodySymbol>();
+                symScope && symScope == &iface.body)
+                break;
+            parentScope = parentScope->asSymbol().getParentScope();
+        }
+
+        std::cout << sym.name << " " << parentScope->asSymbol().kind << " ";
+        if (const auto symScope = parentScope->asSymbol().as_if<InstanceBodySymbol>();
+            !symScope || symScope != scope)
+            std::cout << !symScope << (symScope != scope);
+        std::cout << "\n";
+        visitDefault(hVE);
+    }
+
+private:
+    const InstanceSymbol& iface;
+};
 
 // clang-format off
 bitwidth_t getWidth(PredefinedIntegerType::Kind kind) {
@@ -1130,6 +1181,9 @@ const Type& VirtualInterfaceType::fromSyntax(const ASTContext& context,
     auto loc = syntax.name.location();
     auto& iface = InstanceSymbol::createVirtual(context, loc, def->as<DefinitionSymbol>(),
                                                 syntax.parameters);
+
+    InterfaceDefVisitor iDVisitor(&iface);
+    iDVisitor.visit(iface.body);
 
     const ModportSymbol* modport = nullptr;
     std::string_view modportName = syntax.modport ? syntax.modport->member.valueText() : ""sv;
