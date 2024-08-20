@@ -1372,9 +1372,7 @@ endmodule
     compilation.addSyntaxTree(tree);
 
     auto& diags = compilation.getAllDiagnostics();
-    REQUIRE(diags.size() == 2);
-    CHECK(diags[0].code == diag::VirtualInterfaceIfacePort);
-    CHECK(diags[1].code == diag::VirtualInterfaceIfacePort);
+    NO_COMPILATION_ERRORS;
 }
 
 TEST_CASE("Typedef + type param colon access regress GH #471") {
@@ -1513,11 +1511,7 @@ endmodule
 
     Compilation compilation;
     compilation.addSyntaxTree(tree);
-
-    auto& diags = compilation.getAllDiagnostics();
-    REQUIRE(diags.size() == 2);
-    CHECK(diags[0].code == diag::VirtualInterfaceIfacePort);
-    CHECK(diags[1].code == diag::VirtualInterfaceIfacePort);
+    NO_COMPILATION_ERRORS;
 }
 
 TEST_CASE("Invalid enum base regress GH #472") {

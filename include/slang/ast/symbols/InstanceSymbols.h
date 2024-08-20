@@ -164,6 +164,10 @@ public:
     /// Flags that describe properties of the instance.
     bitmask<InstanceFlags> flags;
 
+    /// Collected source ranges of hierarchical identifiers used inside instance body
+    /// for later diagnostic.
+    mutable std::optional<std::span<SourceRange>> hierIdentifiers = std::nullopt;
+
     InstanceBodySymbol(Compilation& compilation, const DefinitionSymbol& definition,
                        const HierarchyOverrideNode* hierarchyOverrideNode,
                        bitmask<InstanceFlags> flags);
@@ -183,6 +187,9 @@ public:
     const DefinitionSymbol& getDefinition() const { return definition; }
 
     bool hasSameType(const InstanceBodySymbol& other) const;
+
+    /// Fill hierIdentifiers list.
+    void collectHierIdents(Compilation& comp) const;
 
     static InstanceBodySymbol& fromDefinition(
         Compilation& compilation, const DefinitionSymbol& definition, SourceLocation instanceLoc,

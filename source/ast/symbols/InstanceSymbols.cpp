@@ -8,6 +8,7 @@
 #include "slang/ast/symbols/InstanceSymbols.h"
 
 #include "ParameterBuilder.h"
+#include <iostream>
 
 #include "slang/ast/ASTSerializer.h"
 #include "slang/ast/ASTVisitor.h"
@@ -37,6 +38,33 @@ using namespace slang;
 using namespace slang::ast;
 using namespace slang::parsing;
 using namespace slang::syntax;
+
+class HierIdentsVisitor : public ASTVisitor<HierIdentsVisitor, true, true> {
+public:
+    SmallVector<SourceRange, 4> hierIdentsSR;
+
+    HierIdentsVisitor(const InstanceBodySymbol& ifaceBody) :
+        ifaceBody(ifaceBody) {};
+
+    void handle(const HierarchicalValueExpression& hVE) {
+        const auto& sym = hVE.symbol;
+        const auto* parentScope = sym.getParentScope();
+        // Checking whether a symbol belongs to the interface definition body
+        while (parentScope->asSymbol().kind != SymbolKind::CompilationUnit) {
+            if (const auto symScope = parentScope->asSymbol().as_if<InstanceBodySymbol>();
+                symScope && symScope == &ifaceBody)
+                break;
+            parentScope = parentScope->asSymbol().getParentScope();
+        }
+
+        if (parentScope->asSymbol().kind == SymbolKind::CompilationUnit)
+            hierIdentsSR.push_back(hVE.sourceRange);
+        visitDefault(hVE);
+    }
+
+private:
+    const InstanceBodySymbol& ifaceBody;
+};
 
 std::pair<std::string_view, SourceLocation> getNameLoc(const HierarchicalInstanceSyntax& syntax) {
     std::string_view name;
@@ -1124,6 +1152,14 @@ bool InstanceBodySymbol::hasSameType(const InstanceBodySymbol& other) const {
     }
 
     return true;
+}
+
+void InstanceBodySymbol::collectHierIdents(Compilation& comp) const {
+    if (!hierIdentifiers.has_value()) {
+        HierIdentsVisitor hIdentsVisitor(*this);
+        hIdentsVisitor.visit(*this);
+        hierIdentifiers = hIdentsVisitor.hierIdentsSR.copy(comp);
+    }
 }
 
 void InstanceBodySymbol::serializeTo(ASTSerializer& serializer) const {

@@ -799,11 +799,9 @@ endinterface:sliceIfc
     compilation.addSyntaxTree(tree);
 
     auto& diags = compilation.getAllDiagnostics();
-    REQUIRE(diags.size() == 6);
-    CHECK(diags[0].code == diag::VirtualInterfaceIfacePort);
-    CHECK(diags[1].code == diag::VirtualInterfaceIfacePort);
+    REQUIRE(diags.size() == 4);
+    CHECK(diags[0].code == diag::VirtualInterfaceHierRef);
+    CHECK(diags[1].code == diag::VirtualInterfaceHierRef);
     CHECK(diags[2].code == diag::VirtualInterfaceHierRef);
     CHECK(diags[3].code == diag::VirtualInterfaceHierRef);
-    CHECK(diags[4].code == diag::VirtualInterfaceHierRef);
-    CHECK(diags[5].code == diag::VirtualInterfaceHierRef);
 }

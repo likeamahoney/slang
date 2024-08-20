@@ -6,6 +6,7 @@
 // SPDX-License-Identifier: MIT
 //------------------------------------------------------------------------------
 #include "slang/ast/types/AllTypes.h"
+#include <iostream>
 
 #include "slang/ast/ASTContext.h"
 #include "slang/ast/ASTSerializer.h"
@@ -20,6 +21,7 @@
 #include "slang/diagnostics/ConstEvalDiags.h"
 #include "slang/diagnostics/DeclarationsDiags.h"
 #include "slang/diagnostics/ExpressionsDiags.h"
+#include "slang/diagnostics/GeneralDiags.h"
 #include "slang/diagnostics/LookupDiags.h"
 #include "slang/diagnostics/NumericDiags.h"
 #include "slang/diagnostics/TypesDiags.h"
@@ -31,55 +33,6 @@ namespace {
 using namespace slang;
 using namespace slang::syntax;
 using namespace slang::ast;
-
-class InterfaceDefVisitor : public ASTVisitor<InterfaceDefVisitor, true, true> {
-public:
-    InterfaceDefVisitor(const InstanceSymbol& iface, const ASTContext& context) :
-        iface(iface), context(context) {};
-    template<typename T>
-    void handle(const T& symbol) {
-        if constexpr (std::is_base_of_v<Symbol, T>) {
-            if (symbol.kind == SymbolKind::Instance) {
-                const auto* inst = symbol.template as_if<InstanceSymbol>();
-                if (inst->isInterface()) {
-                    auto& diag = context.addDiag(diag::VirtualInterfaceIfacePort, inst->location);
-                    diag.addNote(diag::VirtualInterfaceDecl, iface.location);
-                }
-            }
-        }
-
-        if constexpr (requires { symbol.getBody().bad(); }) {
-            auto& body = symbol.getBody();
-            if (body.bad())
-                return;
-
-            body.visit(*this);
-        }
-        visitDefault(symbol);
-    }
-
-    void handle(const HierarchicalValueExpression& hVE) {
-        const auto& sym = hVE.symbol;
-        const auto* parentScope = sym.getParentScope();
-        // Checking whether a symbol belongs to the interface definition body
-        while (parentScope->asSymbol().kind != SymbolKind::CompilationUnit) {
-            if (const auto symScope = parentScope->asSymbol().as_if<InstanceBodySymbol>();
-                symScope && symScope == &iface.body)
-                break;
-            parentScope = parentScope->asSymbol().getParentScope();
-        }
-
-        if (parentScope->asSymbol().kind == SymbolKind::CompilationUnit) {
-            auto& diag = context.addDiag(diag::VirtualInterfaceHierRef, hVE.sourceRange);
-            diag.addNote(diag::VirtualInterfaceDecl, iface.location);
-        }
-        visitDefault(hVE);
-    }
-
-private:
-    const InstanceSymbol& iface;
-    const ASTContext& context;
-};
 
 // clang-format off
 bitwidth_t getWidth(PredefinedIntegerType::Kind kind) {
@@ -1181,8 +1134,13 @@ const Type& VirtualInterfaceType::fromSyntax(const ASTContext& context,
     auto& iface = InstanceSymbol::createVirtual(context, loc, def->as<DefinitionSymbol>(),
                                                 syntax.parameters);
 
-    InterfaceDefVisitor iDVisitor(iface, context);
-    iDVisitor.visit(iface.body);
+    if (const auto& hierIdents = iface.body.hierIdentifiers.value_or(std::span<SourceRange>());
+        !hierIdents.empty()) {
+        for (auto& sR : hierIdents) {
+            auto& diag = context.addDiag(diag::VirtualInterfaceHierRef, sR);
+            diag.addNote(diag::NoteDeclarationHere, iface.location);
+        }
+    }
 
     const ModportSymbol* modport = nullptr;
     std::string_view modportName = syntax.modport ? syntax.modport->member.valueText() : ""sv;

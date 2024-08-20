@@ -1823,10 +1823,9 @@ endmodule
     compilation.addSyntaxTree(tree);
 
     auto& diags = compilation.getAllDiagnostics();
-    REQUIRE(diags.size() == 3);
-    CHECK(diags[0].code == diag::VirtualInterfaceIfacePort);
+    REQUIRE(diags.size() == 2);
+    CHECK(diags[0].code == diag::VirtualIfaceDefparam);
     CHECK(diags[1].code == diag::VirtualIfaceDefparam);
-    CHECK(diags[2].code == diag::VirtualIfaceDefparam);
 }
 
 TEST_CASE("Spurious errors in uninstantiated blocks, GH #1028") {

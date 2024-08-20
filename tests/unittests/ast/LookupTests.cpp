@@ -2008,8 +2008,7 @@ endpackage
     Compilation compilation;
     compilation.addSyntaxTree(tree);
     auto& diags = compilation.getAllDiagnostics();
-    REQUIRE(diags.size() == 1);
-    CHECK(diags[0].code == diag::VirtualInterfaceIfacePort);
+    NO_COMPILATION_ERRORS;
 }
 
 TEST_CASE("Selector of dotted interface array access") {

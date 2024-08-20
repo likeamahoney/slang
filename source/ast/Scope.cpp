@@ -6,6 +6,7 @@
 // SPDX-License-Identifier: MIT
 //------------------------------------------------------------------------------
 #include "slang/ast/Scope.h"
+#include <iostream>
 
 #include "slang/ast/Compilation.h"
 #include "slang/ast/Expression.h"
@@ -639,6 +640,11 @@ void Scope::insertMember(const Symbol* member, const Symbol* at, bool isElaborat
         auto pair = nameMap->emplace(member->name, member);
         if (!pair.second)
             handleNameConflict(*member, pair.first->second, isElaborating);
+    }
+
+    if (auto inst = member->as_if<InstanceSymbol>(); inst && inst->isInterface()) {
+        inst->body.collectHierIdents(compilation);
+        std::cout << "aaaa" << inst->name << " " << inst->body.hierIdentifiers.value().size() << "\n";
     }
 }
 
